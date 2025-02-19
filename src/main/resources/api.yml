@@ -1,0 +1,135 @@
+openapi: 3.0.3
+info:
+  title: Transaction Service API
+  description: API for handling transactions such as deposits, withdrawals, credit payments, and credit card purchases.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1/transactions
+paths:
+  /deposit:
+    post:
+      summary: Make a deposit to an account
+      operationId: deposit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositRequest'
+      responses:
+        "200":
+          description: Deposit successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        "400":
+          description: Invalid request
+        "404":
+          description: Account not found
+  /withdraw:
+    post:
+      summary: Withdraw funds from an account
+      operationId: withdraw
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WithdrawRequest'
+      responses:
+        "200":
+          description: Withdrawal successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        "400":
+          description: Invalid request
+        "404":
+          description: Account not found
+  /credit-payment:
+    post:
+      summary: Make a payment to a credit or credit card
+      operationId: creditPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditPaymentRequest'
+      responses:
+        "200":
+          description: Payment successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        "400":
+          description: Invalid request
+        "404":
+          description: Credit or credit card not found
+  /credit-card-consumption:
+    post:
+      summary: Register a purchase on a credit card
+      operationId: creditCardConsumption
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditCardConsumptionRequest'
+      responses:
+        "200":
+          description: Consumption registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        "400":
+          description: Invalid request
+        "404":
+          description: Credit card not found
+components:
+  schemas:
+    DepositRequest:
+      type: object
+      properties:
+        accountId:
+          type: string
+        amount:
+          type: number
+          format: double
+    WithdrawRequest:
+      type: object
+      properties:
+        accountId:
+          type: string
+        amount:
+          type: number
+          format: double
+    CreditPaymentRequest:
+      type: object
+      properties:
+        creditId:
+          type: string
+        amount:
+          type: number
+          format: double
+    CreditCardConsumptionRequest:
+      type: object
+      properties:
+        creditCardId:
+          type: string
+        amount:
+          type: number
+          format: double
+    BaseResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+        data:
+          type: object

@@ -152,8 +152,10 @@ public class TransactionService {
         return validateAccountOwnership(customerId, id)
                 .switchIfEmpty(validateCreditOwnership(customerId, id))
                 .switchIfEmpty(validateCreditCardOwnership(customerId, id))
+                .onErrorResume(e -> Mono.just(false))
                 .defaultIfEmpty(false);
     }
+
     private Mono<Boolean> validateAccountOwnership(String customerId, String accountId) {
         return transactionCacheService.getAccount(accountId)
                 .flatMap(account -> {

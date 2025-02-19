@@ -1,8 +1,8 @@
 package com.bank.transactionservice.dto;
 
 
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
+import org.springframework.data.repository.NoRepositoryBean;
 
 @Data
 @Builder

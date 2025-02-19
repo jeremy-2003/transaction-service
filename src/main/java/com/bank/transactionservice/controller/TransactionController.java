@@ -108,16 +108,6 @@ public class TransactionController {
     public Mono<ResponseEntity<BaseResponse<List<Transaction>>>> getTransactionsByCustomerIdAndProductId(
             @PathVariable String customerId,
             @PathVariable String productId) {
-        return transactionService.validateOwnership(customerId, productId)
-                .flatMap(ownershipValid -> {
-                    if (!ownershipValid) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN)
-                                .body(BaseResponse.<List<Transaction>>builder()
-                                        .status(HttpStatus.FORBIDDEN.value())
-                                        .message("The product does not belong to the customer")
-                                        .data(Collections.emptyList())
-                                        .build()));
-                    }
                     return transactionService.getTransactionsByCustomerIdAndProductId(customerId, productId)
                             .collectList()
                             .map(transactions -> {
@@ -134,25 +124,6 @@ public class TransactionController {
                                         .data(transactions)
                                         .build());
                             });
-                })
-                .onErrorResume(IllegalArgumentException.class, e -> {
-                    return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body(BaseResponse.<List<Transaction>>builder()
-                                    .status(HttpStatus.FORBIDDEN.value())
-                                    .message(e.getMessage())
-                                    .data(Collections.emptyList())
-                                    .build()));
-                })
-                .onErrorResume(Exception.class, e -> {
-                    log.error("Error retrieving product transactions", e);
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(BaseResponse.<List<Transaction>>builder()
-                                    .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                                    .message("Error retrieving transactions")
-                                    .build()));
-                })
-                .doOnSuccess(response -> log.info("Retrieved transactions for product: {} with status: {}",
-                        productId, response.getStatusCode()));
     }
 
     @GetMapping("/{transactionId}")
