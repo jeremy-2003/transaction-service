@@ -1,12 +1,10 @@
-package com.bank.transactionservice.service;
-import com.bank.transactionservice.model.Account;
-import com.bank.transactionservice.model.Credit;
-import com.bank.transactionservice.model.CreditCard;
+package com.bank.transactionservice.event;
+import com.bank.transactionservice.model.creditcard.CreditCard;
+import com.bank.transactionservice.service.TransactionCacheService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.common.protocol.types.Field;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
@@ -18,12 +16,11 @@ public class CreditCardEventConsumer {
         this.transactionCacheService = transactionCacheService;
     }
     @KafkaListener(topics = "creditcard-created", groupId = "transaction-service-group")
-    public void consumeCreditCardCreated(String message) {
+    public void consumeCreditCardCreated(CreditCard creditCard) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             objectMapper.registerModule(new JavaTimeModule());
             objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-            CreditCard creditCard = objectMapper.readValue(message, CreditCard.class);
             transactionCacheService.saveCreditCard(creditCard.getId(), creditCard)
                     .doOnSuccess(unused -> log.info("CreditCard successfully saved in cache"))
                     .doOnError(error -> log.error("Error saving CreditCard in cache: {}", error.getMessage()))

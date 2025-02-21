@@ -1,8 +1,8 @@
 package com.bank.transactionservice.service;
 
-import com.bank.transactionservice.model.Account;
-import com.bank.transactionservice.model.Credit;
-import com.bank.transactionservice.model.CreditCard;
+import com.bank.transactionservice.model.account.Account;
+import com.bank.transactionservice.model.credit.Credit;
+import com.bank.transactionservice.model.creditcard.CreditCard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;

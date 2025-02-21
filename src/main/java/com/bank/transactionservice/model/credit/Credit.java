@@ -1,8 +1,7 @@
-package com.bank.transactionservice.model;
+package com.bank.transactionservice.model.credit;
 
 import lombok.*;
 import nonapi.io.github.classgraph.json.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

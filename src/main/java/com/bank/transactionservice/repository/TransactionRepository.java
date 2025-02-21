@@ -1,6 +1,6 @@
 package com.bank.transactionservice.repository;
 
-import com.bank.transactionservice.model.Transaction.Transaction;
+import com.bank.transactionservice.model.transaction.Transaction;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import reactor.core.publisher.Flux;
 

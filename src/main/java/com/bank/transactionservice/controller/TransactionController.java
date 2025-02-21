@@ -1,7 +1,7 @@
 package com.bank.transactionservice.controller;
 
 import com.bank.transactionservice.dto.BaseResponse;
-import com.bank.transactionservice.model.Transaction.Transaction;
+import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.service.TransactionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

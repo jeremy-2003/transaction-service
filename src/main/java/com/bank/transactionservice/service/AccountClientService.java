@@ -1,7 +1,7 @@
 package com.bank.transactionservice.service;
 
 import com.bank.transactionservice.dto.BaseResponse;
-import com.bank.transactionservice.model.Account;
+import com.bank.transactionservice.model.account.Account;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;

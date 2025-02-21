@@ -1,6 +1,6 @@
 package com.bank.transactionservice.service;
 
-import com.bank.transactionservice.model.Transaction.Transaction;
+import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.repository.TransactionRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

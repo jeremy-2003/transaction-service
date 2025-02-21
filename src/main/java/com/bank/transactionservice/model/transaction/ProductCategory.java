@@ -1,4 +1,4 @@
-package com.bank.transactionservice.model.Transaction;
+package com.bank.transactionservice.model.transaction;
 
 public enum ProductCategory {
     ACCOUNT, CREDIT, CREDIT_CARD

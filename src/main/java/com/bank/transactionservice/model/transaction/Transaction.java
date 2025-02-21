@@ -1,4 +1,4 @@
-package com.bank.transactionservice.model.Transaction;
+package com.bank.transactionservice.model.transaction;
 
 import lombok.*;
 import nonapi.io.github.classgraph.json.Id;

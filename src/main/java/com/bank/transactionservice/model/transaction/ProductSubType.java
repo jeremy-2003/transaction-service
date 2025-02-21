@@ -1,4 +1,4 @@
-package com.bank.transactionservice.model.Transaction;
+package com.bank.transactionservice.model.transaction;
 
 public enum ProductSubType {
     SAVINGS, CHECKING, FIXED_TERM,
