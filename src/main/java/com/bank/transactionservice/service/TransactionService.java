@@ -1,6 +1,8 @@
 package com.bank.transactionservice.service;
 
+import com.bank.transactionservice.model.account.Account;
 import com.bank.transactionservice.model.transaction.Transaction;
+import com.bank.transactionservice.model.transaction.TransactionType;
 import com.bank.transactionservice.repository.TransactionRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -48,17 +50,41 @@ public class TransactionService {
                 return Mono.error(new IllegalArgumentException("Invalid product category"));
         }
     }
-    private Mono<Transaction> processAccountTransaction(Transaction transaction) {
+    public Mono<Transaction> processAccountTransaction(Transaction transaction) {
         return transactionCacheService.getAccount(transaction.getProductId())
                 .switchIfEmpty(accountClientService.getAccountById(transaction.getProductId())
                         .flatMap(account -> transactionCacheService.saveAccount(transaction.getProductId(), account)
                                 .thenReturn(account)))
-                .flatMap(account -> {
-                    BigDecimal newBalance = calculateNewBalance(account.getBalance(), transaction);
-                    return accountClientService.updateAccountBalance(transaction.getProductId(), newBalance)
-                            //.flatMap(updatedAccount -> transactionCacheService.saveAccount(transaction.getProductId(), updatedAccount))
-                            .thenReturn(transaction);
-                });
+                .flatMap(account -> transactionRepository.findByProductId(transaction.getProductId())
+                        .filter(e -> e.getTransactionType().equals(TransactionType.WITHDRAWAL) ||
+                                e.getTransactionType().equals(TransactionType.DEPOSIT))
+                        .count()
+                        .flatMap(transactionCount -> {
+                            BigDecimal newBalance = calculateNewBalance(account.getBalance(), transaction);
+                            if (transactionCount >= account.getMaxFreeTransaction() && (transaction.getTransactionType()==TransactionType.WITHDRAWAL ||transaction.getTransactionType()==TransactionType.DEPOSIT)) {
+                                newBalance = newBalance.add(account.getTransactionCost());
+                                transaction.setAmount(transaction.getAmount().add(account.getTransactionCost()));
+                            }
+
+                            Mono<Account> updateAccountBalanceMono = accountClientService.updateAccountBalance(transaction.getProductId(), newBalance);
+
+                            if (transaction.getTransactionType() == TransactionType.TRANSFER) {
+                                if (transaction.getDestinationAccountId() == null) {
+                                    return Mono.error(new IllegalArgumentException("A destination account is required for a transfer"));
+                                } else {
+                                    // Obtener la cuenta de destino y actualizar su saldo
+                                    updateAccountBalanceMono = updateAccountBalanceMono.then(
+                                            accountClientService.getAccountById(transaction.getDestinationAccountId())
+                                                    .flatMap(destinationAccount -> {
+                                                        BigDecimal destinationNewBalance = BigDecimal.valueOf(destinationAccount.getBalance()).add(transaction.getAmount());
+                                                        return accountClientService.updateAccountBalance(transaction.getDestinationAccountId(), destinationNewBalance);
+                                                    })
+                                    );
+                                }
+                            }
+
+                            return updateAccountBalanceMono.thenReturn(transaction);
+                        }));
     }
     private Mono<Transaction> processCreditTransaction(Transaction transaction) {
         return transactionCacheService.getCredit(transaction.getProductId())
@@ -94,6 +120,12 @@ public class TransactionService {
             case WITHDRAWAL -> {
                 if (transaction.getAmount().compareTo(balance) > 0) {
                     throw new IllegalArgumentException("Insufficient balance for withdrawal");
+                }
+                yield balance.subtract(transaction.getAmount());
+            }
+            case TRANSFER -> {
+                if (transaction.getAmount().compareTo(balance) > 0) {
+                    throw new IllegalArgumentException("Insufficient balance for transfer");
                 }
                 yield balance.subtract(transaction.getAmount());
             }

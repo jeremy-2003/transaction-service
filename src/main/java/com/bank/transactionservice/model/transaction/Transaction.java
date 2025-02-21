@@ -22,4 +22,5 @@ public class Transaction {
     private TransactionType transactionType;
     private BigDecimal amount;
     private LocalDateTime transactionDate;
+    private String destinationAccountId; //Only for transfer
 }
