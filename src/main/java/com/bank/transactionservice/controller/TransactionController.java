@@ -3,12 +3,17 @@ package com.bank.transactionservice.controller;
 import com.bank.transactionservice.dto.BaseResponse;
 import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.service.TransactionService;
+import com.fasterxml.jackson.databind.ser.Serializers;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -104,28 +109,6 @@ public class TransactionController {
                 .doOnSuccess(response -> log.info("Retrieved transactions for product: {} with status: {}",
                         productId, response.getStatusCode()));
     }
-    @GetMapping("customer/{customerId}/product/{productId}")
-    public Mono<ResponseEntity<BaseResponse<List<Transaction>>>> getTransactionsByCustomerIdAndProductId(
-            @PathVariable String customerId,
-            @PathVariable String productId) {
-                    return transactionService.getTransactionsByCustomerIdAndProductId(customerId, productId)
-                            .collectList()
-                            .map(transactions -> {
-                                if (transactions.isEmpty()) {
-                                    return ResponseEntity.ok(BaseResponse.<List<Transaction>>builder()
-                                            .status(HttpStatus.NO_CONTENT.value())
-                                            .message("No transactions found for product")
-                                            .data(Collections.emptyList())
-                                            .build());
-                                }
-                                return ResponseEntity.ok(BaseResponse.<List<Transaction>>builder()
-                                        .status(HttpStatus.OK.value())
-                                        .message("Transactions retrieved successfully")
-                                        .data(transactions)
-                                        .build());
-                            });
-    }
-
     @GetMapping("/{transactionId}")
     public Mono<ResponseEntity<BaseResponse<Transaction>>> getTransactionById(
             @PathVariable String transactionId) {
@@ -149,5 +132,46 @@ public class TransactionController {
                 })
                 .doOnSuccess(response -> log.info("Retrieved transaction: {} with status: {}",
                         transactionId, response.getStatusCode()));
+    }
+    @GetMapping("customer/{customerId}/product/{productId}")
+    public Mono<ResponseEntity<BaseResponse<List<Transaction>>>> getTransactionsByCustomerIdAndProductId(
+            @PathVariable String customerId,
+            @PathVariable String productId) {
+        return transactionService.getTransactionsByCustomerIdAndProductId(customerId, productId)
+                .collectList()
+                .map(transactions -> {
+                    if (transactions.isEmpty()) {
+                        return ResponseEntity.ok(BaseResponse.<List<Transaction>>builder()
+                                .status(HttpStatus.NO_CONTENT.value())
+                                .message("No transactions found for product")
+                                .data(Collections.emptyList())
+                                .build());
+                    }
+                    return ResponseEntity.ok(BaseResponse.<List<Transaction>>builder()
+                            .status(HttpStatus.OK.value())
+                            .message("Transactions retrieved successfully")
+                            .data(transactions)
+                            .build());
+                });
+    }
+    @GetMapping(value = "/by-date")
+    public Mono<ResponseEntity<BaseResponse<List<Transaction>>>> getTransactionsByDate(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                                                                                       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate){
+        return transactionService.getTrasactionsByDate(startDate, endDate)
+                .collectList()
+                .map(transactions -> {
+                    if (transactions.isEmpty()) {
+                        return ResponseEntity.ok(BaseResponse.<List<Transaction>>builder()
+                                .status(HttpStatus.NO_CONTENT.value())
+                                .message("No transactions found for product")
+                                .data(Collections.emptyList())
+                                .build());
+                    }
+                    return ResponseEntity.ok(BaseResponse.<List<Transaction>>builder()
+                            .status(HttpStatus.OK.value())
+                            .message("Transactions retrieved successfully")
+                            .data(transactions)
+                            .build());
+                });
     }
 }

@@ -23,4 +23,5 @@ public class Transaction {
     private BigDecimal amount;
     private LocalDateTime transactionDate;
     private String destinationAccountId; //Only for transfer
+    private BigDecimal commissions;
 }

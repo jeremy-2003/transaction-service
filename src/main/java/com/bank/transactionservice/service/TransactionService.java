@@ -5,12 +5,14 @@ import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.model.transaction.TransactionType;
 import com.bank.transactionservice.repository.TransactionRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Service
@@ -64,6 +66,7 @@ public class TransactionService {
                             if (transactionCount >= account.getMaxFreeTransaction() && (transaction.getTransactionType()==TransactionType.WITHDRAWAL ||transaction.getTransactionType()==TransactionType.DEPOSIT)) {
                                 newBalance = newBalance.add(account.getTransactionCost());
                                 transaction.setAmount(transaction.getAmount().add(account.getTransactionCost()));
+                                transaction.setCommissions(account.getTransactionCost());
                             }
 
                             Mono<Account> updateAccountBalanceMono = accountClientService.updateAccountBalance(transaction.getProductId(), newBalance);
@@ -254,5 +257,8 @@ public class TransactionService {
                                     return Mono.error(new IllegalArgumentException("CreditCard not found"));
                                 })
                 );
+    }
+    public Flux<Transaction> getTrasactionsByDate(LocalDate startDate, LocalDate endDate){
+        return transactionRepository.findByTransactionDateBetween(startDate, endDate);
     }
 }
