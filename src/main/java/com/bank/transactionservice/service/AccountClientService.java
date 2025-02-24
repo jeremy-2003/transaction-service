@@ -49,7 +49,7 @@ public class AccountClientService {
     public Mono<Account> updateAccountBalance(String accountId, BigDecimal newBalance) {
         String fullUrl = accountServiceUrl + "/" + accountId;
         log.info("Sending request to update account balance: {}", fullUrl);
-        return getAccountById(accountId) // Obtener la cuenta actual
+        return getAccountById(accountId)
                 .flatMap(existingAccount -> {
                     existingAccount.setBalance(newBalance.doubleValue());
                     return webClient.put()

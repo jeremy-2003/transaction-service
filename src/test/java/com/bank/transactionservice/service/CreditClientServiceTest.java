@@ -109,7 +109,7 @@ class CreditClientServiceTest {
         Credit initialCredit = createCredit(creditId, "customer1");
         Credit updatedCredit = createCredit(creditId, "customer1");
         updatedCredit.setRemainingBalance(newBalance);
-        // Mock for GET request
+
         WebClient.RequestHeadersUriSpec getHeadersUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
         WebClient.RequestHeadersSpec getHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
         WebClient.ResponseSpec getResponseSpec = mock(WebClient.ResponseSpec.class);
@@ -122,7 +122,7 @@ class CreditClientServiceTest {
         getResponse.setStatus(200);
         when(getResponseSpec.bodyToMono(any(ParameterizedTypeReference.class)))
                 .thenReturn(Mono.just(getResponse));
-        // Mock for PUT request
+
         WebClient.RequestBodyUriSpec putBodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
         WebClient.RequestBodySpec putBodySpec = mock(WebClient.RequestBodySpec.class);
         WebClient.RequestHeadersSpec putHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
@@ -152,7 +152,7 @@ class CreditClientServiceTest {
         CreditCard initialCreditCard = createCreditCard(creditCardId, "customer1");
         CreditCard updatedCreditCard = createCreditCard(creditCardId, "customer1");
         updatedCreditCard.setAvailableBalance(newBalance);
-        // Mock for GET request
+
         WebClient.RequestHeadersUriSpec getHeadersUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
         WebClient.RequestHeadersSpec getHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
         WebClient.ResponseSpec getResponseSpec = mock(WebClient.ResponseSpec.class);
@@ -165,7 +165,7 @@ class CreditClientServiceTest {
         getResponse.setStatus(200);
         when(getResponseSpec.bodyToMono(any(ParameterizedTypeReference.class)))
                 .thenReturn(Mono.just(getResponse));
-        // Mock for PUT request
+
         WebClient.RequestBodyUriSpec putBodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
         WebClient.RequestBodySpec putBodySpec = mock(WebClient.RequestBodySpec.class);
         WebClient.RequestHeadersSpec putHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
@@ -192,7 +192,7 @@ class CreditClientServiceTest {
         // Arrange
         String creditId = "nonexistent";
         BigDecimal newBalance = new BigDecimal("2000.0");
-        // Mock for GET request
+
         WebClient.RequestHeadersUriSpec getHeadersUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
         WebClient.RequestHeadersSpec getHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
         WebClient.ResponseSpec getResponseSpec = mock(WebClient.ResponseSpec.class);
@@ -211,7 +211,7 @@ class CreditClientServiceTest {
         // Arrange
         String creditCardId = "123";
         BigDecimal newBalance = new BigDecimal("2000.0");
-        // Mock for GET request
+
         WebClient.RequestHeadersUriSpec getHeadersUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
         WebClient.RequestHeadersSpec getHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
         WebClient.ResponseSpec getResponseSpec = mock(WebClient.ResponseSpec.class);

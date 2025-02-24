@@ -37,7 +37,7 @@ class AccountClientServiceTest {
         Account initialAccount = createAccount(accountId, "customer1");
         Account updatedAccount = createAccount(accountId, "customer1");
         updatedAccount.setBalance(newBalance.doubleValue());
-        // Mock for GET request (getAccountById)
+
         WebClient.RequestHeadersUriSpec getHeadersUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
         WebClient.RequestHeadersSpec getHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
         WebClient.ResponseSpec getResponseSpec = mock(WebClient.ResponseSpec.class);
@@ -50,7 +50,7 @@ class AccountClientServiceTest {
         getResponse.setStatus(200);
         when(getResponseSpec.bodyToMono(any(ParameterizedTypeReference.class)))
                 .thenReturn(Mono.just(getResponse));
-        // Mock for PUT request (updateAccountBalance)
+
         WebClient.RequestBodyUriSpec putBodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
         WebClient.RequestBodySpec putBodySpec = mock(WebClient.RequestBodySpec.class);
         WebClient.RequestHeadersSpec putHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
@@ -77,7 +77,7 @@ class AccountClientServiceTest {
         // Arrange
         String accountId = "nonexistent";
         BigDecimal newBalance = new BigDecimal("2000.0");
-        // Mock for GET request (getAccountById)
+
         WebClient.RequestHeadersUriSpec getHeadersUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
         WebClient.RequestHeadersSpec getHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
         WebClient.ResponseSpec getResponseSpec = mock(WebClient.ResponseSpec.class);
@@ -99,7 +99,7 @@ class AccountClientServiceTest {
         // Arrange
         String accountId = "123";
         BigDecimal newBalance = new BigDecimal("2000.0");
-        // Mock for GET request (getAccountById)
+
         WebClient.RequestHeadersUriSpec getHeadersUriSpec = mock(WebClient.RequestHeadersUriSpec.class);
         WebClient.RequestHeadersSpec getHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
         WebClient.ResponseSpec getResponseSpec = mock(WebClient.ResponseSpec.class);

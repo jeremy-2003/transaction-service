@@ -40,20 +40,20 @@ class TransactionCacheServiceTest {
         transactionCacheService = new TransactionCacheService(redisTemplate);
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
-        // Setup test Account
+
         testAccount = new Account();
         testAccount.setId("1");
         testAccount.setCustomerId("customer1");
         testAccount.setAccountType(AccountType.SAVINGS);
         testAccount.setBalance(1000.0);
-        // Setup test Credit
+
         testCredit = new Credit();
         testCredit.setId("1");
         testCredit.setCustomerId("customer1");
         testCredit.setCreditType(CreditType.PERSONAL);
         testCredit.setAmount(new BigDecimal("5000.00"));
         testCredit.setRemainingBalance(new BigDecimal("5000.00"));
-        // Setup test CreditCard
+
         testCreditCard = new CreditCard();
         testCreditCard.setId("1");
         testCreditCard.setCustomerId("customer1");

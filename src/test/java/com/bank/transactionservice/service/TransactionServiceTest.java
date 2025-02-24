@@ -46,7 +46,7 @@ class TransactionServiceTest {
     private CreditCard testCreditCard;
     @BeforeEach
     void setUp() {
-        // Setup test Account
+
         testAccount = new Account();
         testAccount.setId("1");
         testAccount.setCustomerId("customer1");
@@ -54,21 +54,21 @@ class TransactionServiceTest {
         testAccount.setBalance(1000.0);
         testAccount.setMaxFreeTransaction(3);
         testAccount.setTransactionCost(new BigDecimal("1.00"));
-        // Setup test Credit
+
         testCredit = new Credit();
         testCredit.setId("1");
         testCredit.setCustomerId("customer1");
         testCredit.setCreditType(CreditType.PERSONAL);
         testCredit.setAmount(new BigDecimal("5000.00"));
         testCredit.setRemainingBalance(new BigDecimal("5000.00"));
-        // Setup test CreditCard
+
         testCreditCard = new CreditCard();
         testCreditCard.setId("1");
         testCreditCard.setCustomerId("customer1");
         testCreditCard.setCardType(CreditCardType.PERSONAL_CREDIT_CARD);
         testCreditCard.setCreditLimit(new BigDecimal("10000.00"));
         testCreditCard.setAvailableBalance(new BigDecimal("10000.00"));
-        // Setup base transaction
+
         testTransaction = new Transaction();
         testTransaction.setId("1");
         testTransaction.setCustomerId("customer1");
@@ -99,12 +99,10 @@ class TransactionServiceTest {
         testTransaction.setProductCategory(ProductCategory.ACCOUNT);
         testTransaction.setProductId("1");
         testTransaction.setTransactionType(TransactionType.WITHDRAWAL);
-        // Mock account service responses
         when(transactionCacheService.getAccount(testTransaction.getProductId())).thenReturn(Mono.just(testAccount));
         when(accountClientService.getAccountById(testTransaction.getProductId())).thenReturn(Mono.just(testAccount));
         when(accountClientService.updateAccountBalance(anyString(), any(BigDecimal.class)))
                 .thenReturn(Mono.just(testAccount));
-        // Mock repository responses
         when(transactionRepository.findByProductId(anyString()))
                 .thenReturn(Flux.empty());
         when(transactionRepository.save(any(Transaction.class)))
@@ -226,13 +224,10 @@ class TransactionServiceTest {
     void validateOwnership_Account_Success() {
         String customerId = "customer1";
         String accountId = "1";
-        // Mock account service responses
         when(transactionCacheService.getAccount(accountId)).thenReturn(Mono.just(testAccount));
         when(accountClientService.getAccountById(accountId)).thenReturn(Mono.just(testAccount));
-        // Mock credit service responses with empty
         when(transactionCacheService.getCredit(accountId)).thenReturn(Mono.empty());
         when(creditClientService.getCreditById(accountId)).thenReturn(Mono.empty());
-        // Mock credit card service responses with empty
         when(transactionCacheService.getCreditCard(accountId)).thenReturn(Mono.empty());
         when(creditClientService.getCreditCardById(accountId)).thenReturn(Mono.empty());
         StepVerifier.create(transactionService.validateOwnership(customerId, accountId))
@@ -243,13 +238,10 @@ class TransactionServiceTest {
     void validateOwnership_Credit_Success() {
         String customerId = "customer1";
         String creditId = "1";
-        // Mock account service responses with empty
         when(transactionCacheService.getAccount(creditId)).thenReturn(Mono.empty());
         when(accountClientService.getAccountById(creditId)).thenReturn(Mono.empty());
-        // Mock credit service responses
         when(transactionCacheService.getCredit(creditId)).thenReturn(Mono.just(testCredit));
         when(creditClientService.getCreditById(creditId)).thenReturn(Mono.just(testCredit));
-        // Mock credit card service responses with empty
         when(transactionCacheService.getCreditCard(creditId)).thenReturn(Mono.empty());
         when(creditClientService.getCreditCardById(creditId)).thenReturn(Mono.empty());
         StepVerifier.create(transactionService.validateOwnership(customerId, creditId))
