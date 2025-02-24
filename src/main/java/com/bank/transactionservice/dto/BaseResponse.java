@@ -2,9 +2,12 @@ package com.bank.transactionservice.dto;
 
 
 import lombok.*;
-import org.springframework.data.repository.NoRepositoryBean;
 
 @Data
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class BaseResponse<T> {
     private int status;

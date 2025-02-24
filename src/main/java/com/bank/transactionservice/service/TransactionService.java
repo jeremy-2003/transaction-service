@@ -5,7 +5,6 @@ import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.model.transaction.TransactionType;
 import com.bank.transactionservice.repository.TransactionRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
@@ -33,7 +32,7 @@ public class TransactionService {
     }
     public Mono<Transaction> createTransaction(Transaction transaction) {
         return validateAndProcessTransaction(transaction)
-                .flatMap(result ->{
+                .flatMap(result -> {
                     result.setTransactionDate(LocalDateTime.now());
                     return transactionRepository.save(result);
                 })
@@ -63,24 +62,31 @@ public class TransactionService {
                         .count()
                         .flatMap(transactionCount -> {
                             BigDecimal newBalance = calculateNewBalance(account.getBalance(), transaction);
-                            if (transactionCount >= account.getMaxFreeTransaction() && (transaction.getTransactionType()==TransactionType.WITHDRAWAL ||transaction.getTransactionType()==TransactionType.DEPOSIT)) {
+                            if (transactionCount >= account.getMaxFreeTransaction()
+                                    && (transaction.getTransactionType() == TransactionType.WITHDRAWAL
+                                    || transaction.getTransactionType() == TransactionType.DEPOSIT)) {
                                 newBalance = newBalance.add(account.getTransactionCost());
                                 transaction.setAmount(transaction.getAmount().add(account.getTransactionCost()));
                                 transaction.setCommissions(account.getTransactionCost());
                             }
 
-                            Mono<Account> updateAccountBalanceMono = accountClientService.updateAccountBalance(transaction.getProductId(), newBalance);
+                            Mono<Account> updateAccountBalanceMono = accountClientService
+                                    .updateAccountBalance(transaction.getProductId(), newBalance);
 
                             if (transaction.getTransactionType() == TransactionType.TRANSFER) {
                                 if (transaction.getDestinationAccountId() == null) {
-                                    return Mono.error(new IllegalArgumentException("A destination account is required for a transfer"));
+                                    return Mono.error(new IllegalArgumentException("A destination account " +
+                                            "is required for a transfer"));
                                 } else {
-                                    // Obtener la cuenta de destino y actualizar su saldo
                                     updateAccountBalanceMono = updateAccountBalanceMono.then(
                                             accountClientService.getAccountById(transaction.getDestinationAccountId())
                                                     .flatMap(destinationAccount -> {
-                                                        BigDecimal destinationNewBalance = BigDecimal.valueOf(destinationAccount.getBalance()).add(transaction.getAmount());
-                                                        return accountClientService.updateAccountBalance(transaction.getDestinationAccountId(), destinationNewBalance);
+                                                        BigDecimal destinationNewBalance = BigDecimal
+                                                                .valueOf(destinationAccount.getBalance())
+                                                                .add(transaction.getAmount());
+                                                        return accountClientService.updateAccountBalance(transaction
+                                                                .getDestinationAccountId(),
+                                                                destinationNewBalance);
                                                     })
                                     );
                                 }
@@ -96,20 +102,23 @@ public class TransactionService {
                                 .thenReturn(credit)))
                 .flatMap(credit -> {
                     BigDecimal newBalance = calculateNewCreditBalance(credit.getRemainingBalance(), transaction);
-                    return creditClientService.updateCreditBalance(transaction.getProductId(), newBalance)
-                            //.flatMap(updatedCredit -> transactionCacheService.saveCredit(transaction.getProductId(), updatedCredit))
+                    return creditClientService
+                            .updateCreditBalance(transaction.getProductId(),
+                                    newBalance)
                             .thenReturn(transaction);
                 });
     }
     private Mono<Transaction> processCreditCardTransaction(Transaction transaction) {
         return transactionCacheService.getCreditCard(transaction.getProductId())
                 .switchIfEmpty(creditClientService.getCreditCardById(transaction.getProductId())
-                        .flatMap(creditCard -> transactionCacheService.saveCreditCard(transaction.getProductId(), creditCard)
+                        .flatMap(creditCard ->
+                                transactionCacheService
+                                        .saveCreditCard(transaction.getProductId(), creditCard)
                                 .thenReturn(creditCard)))
                 .flatMap(creditCard -> {
-                    BigDecimal newBalance = calculateNewCreditCardBalance(creditCard.getAvailableBalance(), transaction);
+                    BigDecimal newBalance = calculateNewCreditCardBalance(creditCard.getAvailableBalance(),
+                            transaction);
                     return creditClientService.updateCreditCardBalance(transaction.getProductId(), newBalance)
-                            //.flatMap(updatedCreditCard -> transactionCacheService.saveCreditCard(transaction.getProductId(), updatedCreditCard))
                             .thenReturn(transaction);
                 });
     }
@@ -118,48 +127,51 @@ public class TransactionService {
         if (transaction.getAmount().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Transaction amount cannot be negative");
         }
-        return switch (transaction.getTransactionType()) {
-            case DEPOSIT -> balance.add(transaction.getAmount());
-            case WITHDRAWAL -> {
+        switch (transaction.getTransactionType()) {
+            case DEPOSIT:
+                return balance.add(transaction.getAmount());
+            case WITHDRAWAL:
                 if (transaction.getAmount().compareTo(balance) > 0) {
                     throw new IllegalArgumentException("Insufficient balance for withdrawal");
                 }
-                yield balance.subtract(transaction.getAmount());
-            }
-            case TRANSFER -> {
+                return balance.subtract(transaction.getAmount());
+            case TRANSFER:
                 if (transaction.getAmount().compareTo(balance) > 0) {
                     throw new IllegalArgumentException("Insufficient balance for transfer");
                 }
-                yield balance.subtract(transaction.getAmount());
-            }
-            default -> throw new IllegalArgumentException("Invalid transaction type for account");
-        };
+                return balance.subtract(transaction.getAmount());
+            default:
+                throw new IllegalArgumentException("Invalid transaction type for account");
+        }
     }
 
     private BigDecimal calculateNewCreditBalance(BigDecimal currentBalance, Transaction transaction) {
         if (transaction.getAmount().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Transaction amount cannot be negative");
         }
-        return switch (transaction.getTransactionType()) {
-            case CREDIT_PAYMENT -> currentBalance.subtract(transaction.getAmount());
-            default -> throw new IllegalArgumentException("Invalid transaction type for credit");
-        };
+        switch (transaction.getTransactionType()) {
+            case CREDIT_PAYMENT:
+                return currentBalance.subtract(transaction.getAmount());
+            default:
+                throw new IllegalArgumentException("Invalid transaction type for credit");
+        }
     }
 
     private BigDecimal calculateNewCreditCardBalance(BigDecimal currentBalance, Transaction transaction) {
         if (transaction.getAmount().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Transaction amount cannot be negative");
         }
-        return switch (transaction.getTransactionType()) {
-            case CREDIT_CARD_PURCHASE -> {
+        switch (transaction.getTransactionType()) {
+            case CREDIT_CARD_PURCHASE:
                 if (transaction.getAmount().compareTo(currentBalance) > 0) {
                     throw new IllegalArgumentException("Insufficient balance for purchase");
                 }
-                yield currentBalance.subtract(transaction.getAmount());
-            }
-            case CREDIT_PAYMENT -> currentBalance.add(transaction.getAmount());
-            default -> throw new IllegalArgumentException("Invalid transaction type for credit card");
-        };
+                return currentBalance.subtract(transaction.getAmount());
+            case CREDIT_PAYMENT:
+                return currentBalance.add(transaction.getAmount());
+            default:
+                throw new IllegalArgumentException("Invalid transaction type for credit card");
+        }
     }
     public Flux<Transaction> getTransactionsByCustomerId(String customerId) {
         return transactionRepository.findByCustomerId(customerId)
@@ -180,8 +192,10 @@ public class TransactionService {
     public Flux<Transaction> getTransactionsByCustomerIdAndProductId(String customerId, String productId) {
         return validateOwnership(customerId, productId)
                 .thenMany(transactionRepository.findByCustomerIdAndProductId(customerId, productId))
-                .doOnComplete(()-> log.info("Retrieved transactions for product: {}", productId))
-                .doOnError(e ->log.error("Error retrieving transactions for product: {}: {}", productId, e.getMessage()));
+                .doOnComplete(() -> log.info("Retrieved " +
+                        "transactions for product: {}", productId))
+                .doOnError(e -> log.error("Error retrieving " +
+                        "transactions for product: {}: {}", productId, e.getMessage()));
     }
     public Mono<Boolean> validateOwnership(String customerId, String id) {
         return validateAccountOwnership(customerId, id)
@@ -206,7 +220,8 @@ public class TransactionService {
                                         return transactionCacheService.saveAccount(accountId, account)
                                                 .thenReturn(true);
                                     }
-                                    return Mono.error(new IllegalArgumentException("Account does not belong to customer"));
+                                    return Mono.error(new IllegalArgumentException("Account does not " +
+                                            "belong to customer"));
                                 })
                                 .onErrorResume(WebClientResponseException.NotFound.class, ex -> {
                                     return Mono.error(new IllegalArgumentException("Account not found"));
@@ -229,7 +244,8 @@ public class TransactionService {
                                         return transactionCacheService.saveCredit(creditId, credit)
                                                 .thenReturn(true);
                                     }
-                                    return Mono.error(new IllegalArgumentException("Credit does not belong to customer"));
+                                    return Mono.error(new IllegalArgumentException("Credit does not " +
+                                            "belong to customer"));
                                 })
                                 .onErrorResume(WebClientResponseException.NotFound.class, ex -> {
                                     return Mono.error(new IllegalArgumentException("Credit not found"));
@@ -248,17 +264,19 @@ public class TransactionService {
                         creditClientService.getCreditCardById(creditCardId)
                                 .flatMap(creditCard -> {
                                     if (creditCard.getCustomerId().equals(customerId)) {
-                                        return transactionCacheService.saveCreditCard(creditCardId, creditCard)
+                                        return transactionCacheService
+                                                .saveCreditCard(creditCardId, creditCard)
                                                 .thenReturn(true);
                                     }
-                                    return Mono.error(new IllegalArgumentException("CreditCard does not belong to customer"));
+                                    return Mono.error(new IllegalArgumentException("CreditCard does not " +
+                                            "belong to customer"));
                                 })
                                 .onErrorResume(WebClientResponseException.NotFound.class, ex -> {
                                     return Mono.error(new IllegalArgumentException("CreditCard not found"));
                                 })
                 );
     }
-    public Flux<Transaction> getTrasactionsByDate(LocalDate startDate, LocalDate endDate){
+    public Flux<Transaction> getTrasactionsByDate(LocalDate startDate, LocalDate endDate) {
         return transactionRepository.findByTransactionDateBetween(startDate, endDate);
     }
 }

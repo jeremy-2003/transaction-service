@@ -1,135 +1,228 @@
 openapi: 3.0.3
 info:
   title: Transaction Service API
-  description: API for handling transactions such as deposits, withdrawals, credit payments, and credit card purchases.
+  description: API for managing transactions including creation, retrieval, and filtering by various criteria
   version: 1.0.0
 servers:
-  - url: http://localhost:8080/api/v1/transactions
-paths:
-  /deposit:
-    post:
-      summary: Make a deposit to an account
-      operationId: deposit
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DepositRequest'
-      responses:
-        "200":
-          description: Deposit successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BaseResponse'
-        "400":
-          description: Invalid request
-        "404":
-          description: Account not found
-  /withdraw:
-    post:
-      summary: Withdraw funds from an account
-      operationId: withdraw
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WithdrawRequest'
-      responses:
-        "200":
-          description: Withdrawal successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BaseResponse'
-        "400":
-          description: Invalid request
-        "404":
-          description: Account not found
-  /credit-payment:
-    post:
-      summary: Make a payment to a credit or credit card
-      operationId: creditPayment
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreditPaymentRequest'
-      responses:
-        "200":
-          description: Payment successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BaseResponse'
-        "400":
-          description: Invalid request
-        "404":
-          description: Credit or credit card not found
-  /credit-card-consumption:
-    post:
-      summary: Register a purchase on a credit card
-      operationId: creditCardConsumption
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreditCardConsumptionRequest'
-      responses:
-        "200":
-          description: Consumption registered successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BaseResponse'
-        "400":
-          description: Invalid request
-        "404":
-          description: Credit card not found
+  - url: http://localhost:8080/api/transactions
 components:
   schemas:
-    DepositRequest:
+    Transaction:
       type: object
       properties:
-        accountId:
+        id:
           type: string
+        customerId:
+          type: string
+        productId:
+          type: string
+        productCategory:
+          type: string
+          enum: [ACCOUNT, CREDIT, CREDIT_CARD]
+        productSubType:
+          type: string
+          enum: [SAVINGS, CHECKING, FIXED_TERM, PERSONAL_CREDIT, BUSINESS_CREDIT, PERSONAL_CREDIT_CARD, BUSINESS_CREDIT_CARD]
+        transactionType:
+          type: string
+          enum: [DEPOSIT, WITHDRAWAL, TRANSFER, CREDIT_PAYMENT, CREDIT_CARD_PURCHASE]
         amount:
           type: number
           format: double
-    WithdrawRequest:
-      type: object
-      properties:
-        accountId:
+        transactionDate:
           type: string
-        amount:
-          type: number
-          format: double
-    CreditPaymentRequest:
-      type: object
-      properties:
-        creditId:
+          format: date-time
+        destinationAccountId:
           type: string
-        amount:
-          type: number
-          format: double
-    CreditCardConsumptionRequest:
-      type: object
-      properties:
-        creditCardId:
-          type: string
-        amount:
+          description: Required only for transfer transactions
+        commissions:
           type: number
           format: double
     BaseResponse:
       type: object
       properties:
         status:
-          type: string
+          type: integer
+          description: HTTP status code
         message:
           type: string
         data:
-          type: object
+          oneOf:
+            - $ref: '#/components/schemas/Transaction'
+            - type: array
+              items:
+                $ref: '#/components/schemas/Transaction'
+paths:
+  /:
+    post:
+      summary: Create a new transaction
+      operationId: createTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Transaction'
+      responses:
+        '200':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+  /customer/{customerId}:
+    get:
+      summary: Get transactions by customer ID
+      operationId: getTransactionsByCustomerId
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '204':
+          description: No transactions found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+  /product/{productId}:
+    get:
+      summary: Get transactions by product ID
+      operationId: getTransactionsByProductId
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '204':
+          description: No transactions found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+  /{transactionId}:
+    get:
+      summary: Get transaction by ID
+      operationId: getTransactionById
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transaction retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+  /customer/{customerId}/product/{productId}:
+    get:
+      summary: Get transactions by customer ID and product ID
+      operationId: getTransactionsByCustomerIdAndProductId
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '204':
+          description: No transactions found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+  /by-date:
+    get:
+      summary: Get transactions by date range
+      operationId: getTransactionsByDate
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '204':
+          description: No transactions found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'

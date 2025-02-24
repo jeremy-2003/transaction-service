@@ -18,7 +18,7 @@ public class AccountClientService {
     private final WebClient webClient;
     private final String accountServiceUrl;
     public AccountClientService(WebClient.Builder webClientBuilder,
-                                @Value("${account-service.base-url}") String accountServiceUrl){
+                                @Value("${account-service.base-url}") String accountServiceUrl) {
         this.accountServiceUrl = accountServiceUrl;
         this.webClient = webClientBuilder.baseUrl(accountServiceUrl).build();
     }
@@ -34,9 +34,9 @@ public class AccountClientService {
                 .onStatus(HttpStatus::is5xxServerError, response ->
                         Mono.error(new RuntimeException("Server error: " + response.statusCode()))
                 )
-                .bodyToMono(new ParameterizedTypeReference<BaseResponse<Account>>() {})
+                .bodyToMono(new ParameterizedTypeReference<BaseResponse<Account>>() { })
                 .flatMap(response -> {
-                    if(response.getData() != null){
+                    if (response.getData() != null) {
                         return Mono.just(response.getData());
                     } else {
                         return Mono.empty();
@@ -62,7 +62,7 @@ public class AccountClientService {
                             .onStatus(HttpStatus::is5xxServerError, response ->
                                     Mono.error(new RuntimeException("Server error: " + response.statusCode()))
                             )
-                            .bodyToMono(new ParameterizedTypeReference<BaseResponse<Account>>() {})
+                            .bodyToMono(new ParameterizedTypeReference<BaseResponse<Account>>() { })
                             .flatMap(response -> {
                                 if (response.getData() != null) {
                                     return Mono.just(response.getData());

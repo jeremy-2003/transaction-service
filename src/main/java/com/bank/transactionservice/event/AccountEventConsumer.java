@@ -8,9 +8,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
-public class AccounEventConsumer {
+public class AccountEventConsumer {
     private final TransactionCacheService transactionCacheService;
-    public AccounEventConsumer(TransactionCacheService transactionCacheService) {
+    public AccountEventConsumer(TransactionCacheService transactionCacheService) {
         this.transactionCacheService = transactionCacheService;
     }
     @KafkaListener(topics = "account-created", groupId = "transaction-service-group")

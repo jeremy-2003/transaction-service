@@ -3,16 +3,12 @@ package com.bank.transactionservice.controller;
 import com.bank.transactionservice.dto.BaseResponse;
 import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.service.TransactionService;
-import com.fasterxml.jackson.databind.ser.Serializers;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
@@ -155,8 +151,11 @@ public class TransactionController {
                 });
     }
     @GetMapping(value = "/by-date")
-    public Mono<ResponseEntity<BaseResponse<List<Transaction>>>> getTransactionsByDate(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-                                                                                       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate){
+    public Mono<ResponseEntity<BaseResponse<List<Transaction>>>>
+        getTransactionsByDate(@RequestParam @DateTimeFormat
+                                  (iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                          @RequestParam @DateTimeFormat
+                                  (iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return transactionService.getTrasactionsByDate(startDate, endDate)
                 .collectList()
                 .map(transactions -> {

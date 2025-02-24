@@ -19,7 +19,7 @@ public class CreditClientService {
     private final WebClient webClient;
     private final String creditServiceUrl;
     public CreditClientService(WebClient.Builder webClientBuilder,
-                                @Value("${credit-service.base-url-credit}") String creditServiceUrl){
+                                @Value("${credit-service.base-url-credit}") String creditServiceUrl) {
         this.creditServiceUrl = creditServiceUrl;
         this.webClient = webClientBuilder.baseUrl(creditServiceUrl).build();
     }
@@ -35,9 +35,9 @@ public class CreditClientService {
                 .onStatus(HttpStatus::is5xxServerError, response ->
                         Mono.error(new RuntimeException("Server error: " + response.statusCode()))
                 )
-                .bodyToMono(new ParameterizedTypeReference<BaseResponse<Credit>>() {})
+                .bodyToMono(new ParameterizedTypeReference<BaseResponse<Credit>>() { })
                 .flatMap(response -> {
-                    if(response.getData() != null){
+                    if (response.getData() != null) {
                         return Mono.just(response.getData());
                     } else {
                         return Mono.empty();
@@ -59,9 +59,9 @@ public class CreditClientService {
                 .onStatus(HttpStatus::is5xxServerError, response ->
                         Mono.error(new RuntimeException("Server error: " + response.statusCode()))
                 )
-                .bodyToMono(new ParameterizedTypeReference<BaseResponse<CreditCard>>() {})
+                .bodyToMono(new ParameterizedTypeReference<BaseResponse<CreditCard>>() { })
                 .flatMap(response -> {
-                    if(response.getData() != null){
+                    if (response.getData() != null) {
                         return Mono.just(response.getData());
                     } else {
                         return Mono.empty();
@@ -87,7 +87,7 @@ public class CreditClientService {
                             .onStatus(HttpStatus::is5xxServerError, response ->
                                     Mono.error(new RuntimeException("Server error: " + response.statusCode()))
                             )
-                            .bodyToMono(new ParameterizedTypeReference<BaseResponse<Credit>>() {})
+                            .bodyToMono(new ParameterizedTypeReference<BaseResponse<Credit>>() { })
                             .flatMap(response -> {
                                 if (response.getData() != null) {
                                     return Mono.just(response.getData());
@@ -116,7 +116,7 @@ public class CreditClientService {
                             .onStatus(HttpStatus::is5xxServerError, response ->
                                     Mono.error(new RuntimeException("Server error: " + response.statusCode()))
                             )
-                            .bodyToMono(new ParameterizedTypeReference<BaseResponse<CreditCard>>() {})
+                            .bodyToMono(new ParameterizedTypeReference<BaseResponse<CreditCard>>() { })
                             .flatMap(response -> {
                                 if (response.getData() != null) {
                                     return Mono.just(response.getData());

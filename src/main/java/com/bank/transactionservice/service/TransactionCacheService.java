@@ -69,10 +69,10 @@ public class TransactionCacheService {
                     }
                 })
                 .timeout(Duration.ofSeconds(5))
-                .doOnError(TimeoutException.class, e->
+                .doOnError(TimeoutException.class, e ->
                         log.error("Redis operation timed out for key: {}", key))
-                .doOnError(e->{
-                    if(!(e instanceof TimeoutException)){
+                .doOnError(e -> {
+                    if (!(e instanceof TimeoutException)) {
                         log.error("Error retrieving Account from cache: {}", e.getMessage());
                     }
                 })
@@ -123,10 +123,10 @@ public class TransactionCacheService {
                     }
                 })
                 .timeout(Duration.ofSeconds(5))
-                .doOnError(TimeoutException.class, e->
+                .doOnError(TimeoutException.class, e ->
                         log.error("Redis operation timed out for key: {}", key))
-                .doOnError(e->{
-                    if(!(e instanceof TimeoutException)){
+                .doOnError(e -> {
+                    if (!(e instanceof TimeoutException)) {
                         log.error("Error retrieving Credit from cache: {}", e.getMessage());
                     }
                 })
@@ -177,10 +177,10 @@ public class TransactionCacheService {
                     }
                 })
                 .timeout(Duration.ofSeconds(5))
-                .doOnError(TimeoutException.class, e->
+                .doOnError(TimeoutException.class, e ->
                         log.error("Redis operation timed out for key: {}", key))
-                .doOnError(e->{
-                    if(!(e instanceof TimeoutException)){
+                .doOnError(e -> {
+                    if (!(e instanceof TimeoutException)) {
                         log.error("Error retrieving CreditCard from cache: {}", e.getMessage());
                     }
                 })
