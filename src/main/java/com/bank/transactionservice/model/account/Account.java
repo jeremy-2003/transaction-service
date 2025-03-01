@@ -28,8 +28,8 @@ public class Account {
     private BigDecimal maintenanFee; //Is 0 only if the account is Pym
     private List<String> holders;
     private List<String> signers;
-    private LocalDateTime createdAd;
-    private LocalDateTime modifiedAd;
+    private LocalDateTime createdAt;
+    private LocalDateTime modifiedAt;
     private int maxFreeTransaction;
     private BigDecimal transactionCost;
 }

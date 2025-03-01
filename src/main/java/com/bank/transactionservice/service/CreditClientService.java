@@ -129,4 +129,29 @@ public class CreditClientService {
                             .doOnTerminate(() -> log.info("Request to update CreditCard completed"));
                 });
     }
+    public Mono<Credit> updateCredit(Credit credit) {
+        String fullUrl = creditServiceUrl + "/credits/" + credit.getId();
+        log.info("Sending request to update credit: {}", fullUrl);
+        return webClient.put()
+                .uri("/credits/{id}", credit.getId())
+                .bodyValue(credit)
+                .retrieve()
+                .onStatus(HttpStatus::is4xxClientError, response ->
+                        Mono.error(new RuntimeException("Client error: " + response.statusCode()))
+                )
+                .onStatus(HttpStatus::is5xxServerError, response ->
+                        Mono.error(new RuntimeException("Server error: " + response.statusCode()))
+                )
+                .bodyToMono(new ParameterizedTypeReference<BaseResponse<Credit>>() { })
+                .flatMap(response -> {
+                    if (response.getData() != null) {
+                        return Mono.just(response.getData());
+                    } else {
+                        return Mono.empty();
+                    }
+                })
+                .doOnNext(result -> log.info("Credit updated successfully: {}", result))
+                .doOnError(e -> log.error("Error while updating Credit: {}", e.getMessage()))
+                .doOnTerminate(() -> log.info("Request to update Credit completed"));
+    }
 }

@@ -1,5 +1,6 @@
 package com.bank.transactionservice.model.credit;
 
+import com.bank.transactionservice.model.creditcard.PaymentStatus;
 import lombok.*;
 import nonapi.io.github.classgraph.json.Id;
 
@@ -21,4 +22,8 @@ public class Credit {
     private BigDecimal interestRate;
     private LocalDateTime createdAt;
     private LocalDateTime modifiedAt;
+    private PaymentStatus paymentStatus;
+    private CreditStatus creditStatus;
+    private LocalDateTime nextPaymentDate;
+    private BigDecimal minimumPayment;
 }

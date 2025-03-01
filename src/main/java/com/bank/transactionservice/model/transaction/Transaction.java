@@ -24,4 +24,6 @@ public class Transaction {
     private LocalDateTime transactionDate;
     private String destinationAccountId; //Only for transfer
     private BigDecimal commissions;
+    private String sourceAccountId;
+    private String merchantName;
 }

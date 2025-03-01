@@ -23,10 +23,10 @@ public class AccountClientService {
         this.webClient = webClientBuilder.baseUrl(accountServiceUrl).build();
     }
     public Mono<Account> getAccountById(String accountId) {
-        String fullUrl = accountServiceUrl + "/" + accountId;
+        String fullUrl = accountServiceUrl + "/accounts/" + accountId;
         log.info("Sending request to Account Service API: {}", fullUrl);
         return webClient.get()
-                .uri("/{id}", accountId)
+                .uri("/accounts/{id}", accountId)
                 .retrieve()
                 .onStatus(HttpStatus::is4xxClientError, response ->
                         Mono.error(new RuntimeException("Client error: " + response.statusCode()))
@@ -47,13 +47,13 @@ public class AccountClientService {
                 .doOnTerminate(() -> log.info("Request to Account API completed"));
     }
     public Mono<Account> updateAccountBalance(String accountId, BigDecimal newBalance) {
-        String fullUrl = accountServiceUrl + "/" + accountId;
+        String fullUrl = accountServiceUrl + "/accounts/" + accountId;
         log.info("Sending request to update account balance: {}", fullUrl);
         return getAccountById(accountId)
                 .flatMap(existingAccount -> {
                     existingAccount.setBalance(newBalance.doubleValue());
                     return webClient.put()
-                            .uri("/{id}", accountId)
+                            .uri("/accounts/{id}", accountId)
                             .bodyValue(existingAccount)
                             .retrieve()
                             .onStatus(HttpStatus::is4xxClientError, response ->

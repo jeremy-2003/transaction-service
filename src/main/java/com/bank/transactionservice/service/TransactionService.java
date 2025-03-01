@@ -1,10 +1,15 @@
 package com.bank.transactionservice.service;
 
 import com.bank.transactionservice.model.account.Account;
+import com.bank.transactionservice.model.credit.Credit;
+import com.bank.transactionservice.model.credit.CreditStatus;
+import com.bank.transactionservice.model.creditcard.PaymentStatus;
+import com.bank.transactionservice.model.debitcard.DebitCard;
 import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.model.transaction.TransactionType;
 import com.bank.transactionservice.repository.TransactionRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
@@ -13,6 +18,8 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -21,14 +28,17 @@ public class TransactionService {
     private final TransactionCacheService transactionCacheService;
     private final AccountClientService accountClientService;
     private final CreditClientService creditClientService;
+    private  final DebitCardClientService debitCardClientService;
     public TransactionService(TransactionRepository transactionRepository,
                               TransactionCacheService transactionCacheService,
                               AccountClientService accountClientService,
-                              CreditClientService creditClientService) {
+                              CreditClientService creditClientService,
+                              DebitCardClientService debitCardClientService) {
         this.transactionRepository = transactionRepository;
         this.transactionCacheService = transactionCacheService;
         this.accountClientService = accountClientService;
         this.creditClientService = creditClientService;
+        this.debitCardClientService = debitCardClientService;
     }
     public Mono<Transaction> createTransaction(Transaction transaction) {
         return validateAndProcessTransaction(transaction)
@@ -47,9 +57,71 @@ public class TransactionService {
                 return processCreditTransaction(transaction);
             case CREDIT_CARD:
                 return processCreditCardTransaction(transaction);
+            case DEBIT_CARD:
+                return processDebitCardTransaction(transaction);
             default:
                 return Mono.error(new IllegalArgumentException("Invalid product category"));
         }
+    }
+    private Mono<Transaction> processDebitCardTransaction(Transaction transaction) {
+        String debitCardId = transaction.getProductId();
+
+        return debitCardClientService.getDebitCardById(debitCardId)
+                .flatMap( debitCard -> {
+                    if (!"ACTIVE".equals(debitCard.getStatus())){
+                        return Mono.error(new IllegalArgumentException("The debit card is not active"));
+                    }
+
+                    transaction.setCustomerId(debitCard.getCustomerId());
+
+                    switch (transaction.getTransactionType()){
+                        case DEBIT_CARD_PAYMENT:
+                        case DEBIT_CARD_WITHDRAWAL:
+                            return processDebitCardPaymentOrWithdrawal(transaction, debitCard);
+                        default:
+                            return Mono.error(new IllegalArgumentException("Invalid transaction type for debit card"));
+                    }
+                });
+    }
+    private Mono<Transaction> processDebitCardPaymentOrWithdrawal(Transaction transaction, DebitCard debitCard) {
+        String primaryAccountId = debitCard.getPrimaryAccountId();
+        List<String> accountsToTry = new ArrayList<>(debitCard.getAssociatedAccountIds());
+
+        accountsToTry.remove(primaryAccountId);
+        accountsToTry.add(0, primaryAccountId);
+
+        BigDecimal amountToProcess = transaction.getAmount();
+
+        return processWithAvailableAccount(transaction, accountsToTry, 0, amountToProcess);
+    }
+    private Mono<Transaction> processWithAvailableAccount(Transaction transaction,
+                                                          List<String> accountIds,
+                                                          int currentIndex,
+                                                          BigDecimal amount) {
+        if (currentIndex >= accountIds.size()) {
+            return Mono.error(new IllegalArgumentException("Insufficient balance in all associated accounts"));
+        }
+        String currentAccountId = accountIds.get(currentIndex);
+        return accountClientService.getAccountById(currentAccountId)
+                .flatMap( currentAccount -> {
+                    BigDecimal accountBalance = BigDecimal.valueOf(currentAccount.getBalance());
+
+                    if (accountBalance.compareTo(amount) >= 0) {
+                        BigDecimal newBalance = accountBalance.subtract(amount);
+
+                        return accountClientService.updateAccountBalance(currentAccountId, newBalance)
+                                .then(Mono.defer(() -> {
+                                    transaction.setSourceAccountId(currentAccountId);
+                                    return Mono.just(transaction);
+                                }));
+                    } else {
+                        return processWithAvailableAccount(transaction, accountIds, currentIndex + 1, amount);
+                    }
+                })
+                .onErrorResume( e -> {
+                    log.error("Error processing with account {}: {}", currentAccountId, e.getMessage());
+                    return processWithAvailableAccount(transaction, accountIds, currentIndex + 1, amount);
+                });
     }
     public Mono<Transaction> processAccountTransaction(Transaction transaction) {
         return transactionCacheService.getAccount(transaction.getProductId())
@@ -101,11 +173,31 @@ public class TransactionService {
                         .flatMap(credit -> transactionCacheService.saveCredit(transaction.getProductId(), credit)
                                 .thenReturn(credit)))
                 .flatMap(credit -> {
-                    BigDecimal newBalance = calculateNewCreditBalance(credit.getRemainingBalance(), transaction);
-                    return creditClientService
-                            .updateCreditBalance(transaction.getProductId(),
-                                    newBalance)
-                            .thenReturn(transaction);
+                    if (transaction.getTransactionType() == TransactionType.CREDIT_PAYMENT) {
+                        BigDecimal newBalance = calculateNewCreditBalance(credit.getRemainingBalance(), transaction);
+                        Credit updatedCredit = credit;
+
+                        if (newBalance.compareTo(BigDecimal.ZERO) <= 0) {
+                            updatedCredit.setCreditStatus(CreditStatus.FINISHED);
+                            updatedCredit.setPaymentStatus(PaymentStatus.FINISHED);
+                        } else {
+                            if (transaction.getAmount().compareTo(credit.getMinimumPayment()) >= 0) {
+                                updatedCredit.setPaymentStatus(PaymentStatus.PAID);
+                                updatedCredit.setNextPaymentDate(credit.getNextPaymentDate().plusDays(30));
+
+                                BigDecimal newMinimumPayment = newBalance.multiply(new BigDecimal("0.10"));
+                                updatedCredit.setMinimumPayment(newMinimumPayment);
+                            } else {
+                                updatedCredit.setPaymentStatus(PaymentStatus.PENDING);
+                            }
+                        }
+                        updatedCredit.setRemainingBalance(newBalance);
+                        updatedCredit.setModifiedAt(LocalDateTime.now());
+                        return creditClientService
+                                .updateCredit(updatedCredit)
+                                .thenReturn(transaction);
+                    }
+                    return null;
                 });
     }
     private Mono<Transaction> processCreditCardTransaction(Transaction transaction) {
