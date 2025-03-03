@@ -22,8 +22,8 @@ import java.math.BigDecimal;
 import java.util.concurrent.TimeoutException;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
 class TransactionCacheServiceTest {
     @Mock
@@ -215,6 +215,24 @@ class TransactionCacheServiceTest {
     @Test
     void saveCreditCard_NullId_ReturnsError() {
         StepVerifier.create(transactionCacheService.saveCreditCard(null, testCreditCard))
+                .expectError(IllegalArgumentException.class)
+                .verify();
+    }
+    @Test
+    void getAccount_NullId_ReturnsError() {
+        StepVerifier.create(transactionCacheService.getAccount(null))
+                .expectError(IllegalArgumentException.class)
+                .verify();
+    }
+    @Test
+    void getCredit_NullId_ReturnsError() {
+        StepVerifier.create(transactionCacheService.getCredit(null))
+                .expectError(IllegalArgumentException.class)
+                .verify();
+    }
+    @Test
+    void getCreditCard_NullId_ReturnsError() {
+        StepVerifier.create(transactionCacheService.getCreditCard(null))
                 .expectError(IllegalArgumentException.class)
                 .verify();
     }

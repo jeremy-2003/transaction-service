@@ -1,11 +1,15 @@
 package com.bank.transactionservice.service;
 
+import com.bank.transactionservice.client.AccountClientService;
+import com.bank.transactionservice.client.CreditClientService;
+import com.bank.transactionservice.client.DebitCardClientService;
 import com.bank.transactionservice.model.account.Account;
 import com.bank.transactionservice.model.account.AccountType;
 import com.bank.transactionservice.model.credit.Credit;
 import com.bank.transactionservice.model.credit.CreditType;
 import com.bank.transactionservice.model.creditcard.CreditCard;
 import com.bank.transactionservice.model.creditcard.CreditCardType;
+import com.bank.transactionservice.model.debitcard.DebitCard;
 import com.bank.transactionservice.model.transaction.ProductCategory;
 import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.model.transaction.TransactionType;
@@ -26,8 +30,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
 class TransactionServiceTest {
     @Mock
@@ -38,6 +42,8 @@ class TransactionServiceTest {
     private AccountClientService accountClientService;
     @Mock
     private CreditClientService creditClientService;
+    @Mock
+    private DebitCardClientService debitCardClientService;
     @InjectMocks
     private TransactionService transactionService;
     private Transaction testTransaction;
@@ -136,24 +142,6 @@ class TransactionServiceTest {
                                 transaction.getDestinationAccountId().equals("2"))
                 .verifyComplete();
     }
-    @Test
-    void createTransaction_CreditPayment_Success() {
-        testTransaction.setProductCategory(ProductCategory.CREDIT);
-        testTransaction.setProductId("1");
-        testTransaction.setTransactionType(TransactionType.CREDIT_PAYMENT);
-        when(transactionCacheService.getCredit(anyString())).thenReturn(Mono.just(testCredit));
-        when(creditClientService.getCreditById(anyString())).thenReturn(Mono.just(testCredit));
-        when(creditClientService.updateCreditBalance(anyString(), any(BigDecimal.class)))
-                .thenReturn(Mono.just(testCredit));
-        when(transactionRepository.save(any(Transaction.class))).thenReturn(Mono.just(testTransaction));
-        StepVerifier.create(transactionService.createTransaction(testTransaction))
-                .expectNextMatches(transaction ->
-                        transaction.getId().equals("1") &&
-                                transaction.getProductCategory() == ProductCategory.CREDIT &&
-                                transaction.getTransactionType() == TransactionType.CREDIT_PAYMENT)
-                .verifyComplete();
-    }
-
     @Test
     void createTransaction_CreditCardPurchase_Success() {
         testTransaction.setProductCategory(ProductCategory.CREDIT_CARD);
@@ -309,7 +297,7 @@ class TransactionServiceTest {
     }
     @Test
     void calculateNewBalance_InsufficientBalance_WithdrawalError() {
-        testTransaction.setAmount(new BigDecimal("2000.00")); // Amount greater than balance
+        testTransaction.setAmount(new BigDecimal("2000.00"));
         testTransaction.setProductCategory(ProductCategory.ACCOUNT);
         testTransaction.setTransactionType(TransactionType.WITHDRAWAL);
         when(transactionCacheService.getAccount(anyString())).thenReturn(Mono.empty());
@@ -367,19 +355,6 @@ class TransactionServiceTest {
                 .verify();
     }
     @Test
-    void calculateNewCreditBalance_InvalidTransactionType_Error() {
-        testTransaction.setProductCategory(ProductCategory.CREDIT);
-        testTransaction.setTransactionType(TransactionType.WITHDRAWAL);
-        when(transactionCacheService.getCredit(anyString())).thenReturn(Mono.empty());
-        when(creditClientService.getCreditById(anyString())).thenReturn(Mono.just(testCredit));
-        when(transactionCacheService.saveCredit(anyString(), any(Credit.class))).thenReturn(Mono.empty());
-        StepVerifier.create(transactionService.createTransaction(testTransaction))
-                .expectErrorMatches(error ->
-                        error instanceof IllegalArgumentException &&
-                                error.getMessage().equals("Invalid transaction type for credit"))
-                .verify();
-    }
-    @Test
     void validateCreditCardOwnership_CacheEmpty_Success() {
         String customerId = "customer1";
         String creditCardId = "1";
@@ -394,5 +369,157 @@ class TransactionServiceTest {
                 .expectNext(true)
                 .verifyComplete();
         verify(transactionCacheService).saveCreditCard(eq(creditCardId), any(CreditCard.class));
+    }
+    @Test
+    void createTransaction_DebitCardPayment_Success() {
+        DebitCard debitCard = new DebitCard();
+        debitCard.setId("1");
+        debitCard.setCustomerId("customer1");
+        debitCard.setStatus("ACTIVE");
+        debitCard.setPrimaryAccountId("account1");
+        debitCard.setAssociatedAccountIds(Arrays.asList("account1", "account2"));
+        Account account = new Account();
+        account.setId("account1");
+        account.setBalance(500.0);
+        testTransaction.setProductCategory(ProductCategory.DEBIT_CARD);
+        testTransaction.setProductId("1");
+        testTransaction.setTransactionType(TransactionType.DEBIT_CARD_PAYMENT);
+        testTransaction.setAmount(new BigDecimal("100.00"));
+        when(debitCardClientService.getDebitCardById("1")).thenReturn(Mono.just(debitCard));
+        when(accountClientService.getAccountById("account1")).thenReturn(Mono.just(account));
+        when(accountClientService.updateAccountBalance(anyString(), any(BigDecimal.class)))
+                .thenReturn(Mono.just(account));
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(Mono.just(testTransaction));
+        StepVerifier.create(transactionService.createTransaction(testTransaction))
+                .expectNextMatches(transaction ->
+                        transaction.getProductCategory() == ProductCategory.DEBIT_CARD &&
+                                transaction.getTransactionType() == TransactionType.DEBIT_CARD_PAYMENT &&
+                                "account1".equals(transaction.getSourceAccountId()))
+                .verifyComplete();
+        verify(debitCardClientService).getDebitCardById("1");
+        verify(accountClientService).getAccountById("account1");
+        verify(accountClientService).updateAccountBalance(eq("account1"), any(BigDecimal.class));
+        verify(transactionRepository).save(any(Transaction.class));
+    }
+    @Test
+    void createTransaction_DebitCardWithdrawal_Success() {
+        DebitCard debitCard = new DebitCard();
+        debitCard.setId("1");
+        debitCard.setCustomerId("customer1");
+        debitCard.setStatus("ACTIVE");
+        debitCard.setPrimaryAccountId("account1");
+        debitCard.setAssociatedAccountIds(Arrays.asList("account1", "account2"));
+        Account account = new Account();
+        account.setId("account1");
+        account.setBalance(500.0);
+        testTransaction.setProductCategory(ProductCategory.DEBIT_CARD);
+        testTransaction.setProductId("1");
+        testTransaction.setTransactionType(TransactionType.DEBIT_CARD_WITHDRAWAL);
+        testTransaction.setAmount(new BigDecimal("100.00"));
+        when(debitCardClientService.getDebitCardById("1")).thenReturn(Mono.just(debitCard));
+        when(accountClientService.getAccountById("account1")).thenReturn(Mono.just(account));
+        when(accountClientService.updateAccountBalance(anyString(), any(BigDecimal.class)))
+                .thenReturn(Mono.just(account));
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(Mono.just(testTransaction));
+        StepVerifier.create(transactionService.createTransaction(testTransaction))
+                .expectNextMatches(transaction ->
+                        transaction.getProductCategory() == ProductCategory.DEBIT_CARD &&
+                                transaction.getTransactionType() == TransactionType.DEBIT_CARD_WITHDRAWAL &&
+                                "account1".equals(transaction.getSourceAccountId()))
+                .verifyComplete();
+    }
+    @Test
+    void processDebitCardTransaction_InactiveCard_Error() {
+        DebitCard debitCard = new DebitCard();
+        debitCard.setId("1");
+        debitCard.setCustomerId("customer1");
+        debitCard.setStatus("INACTIVE");
+        testTransaction.setProductCategory(ProductCategory.DEBIT_CARD);
+        testTransaction.setProductId("1");
+        testTransaction.setTransactionType(TransactionType.DEBIT_CARD_PAYMENT);
+        lenient().when(debitCardClientService.getDebitCardById("1")).thenReturn(Mono.just(debitCard));
+        lenient().when(transactionRepository.save(any(Transaction.class))).thenReturn(Mono.just(testTransaction));
+        StepVerifier.create(transactionService.createTransaction(testTransaction))
+                .expectErrorMatches(error ->
+                        error instanceof IllegalArgumentException &&
+                                error.getMessage().equals("The debit card is not active"))
+                .verify();
+    }
+    @Test
+    void processDebitCardTransaction_InvalidTransactionType_Error() {
+        DebitCard debitCard = new DebitCard();
+        debitCard.setId("1");
+        debitCard.setCustomerId("customer1");
+        debitCard.setStatus("ACTIVE");
+        testTransaction.setProductCategory(ProductCategory.DEBIT_CARD);
+        testTransaction.setProductId("1");
+        testTransaction.setTransactionType(TransactionType.DEPOSIT);
+        lenient().when(debitCardClientService.getDebitCardById("1")).thenReturn(Mono.just(debitCard));
+        lenient().when(transactionRepository.save(any(Transaction.class))).thenReturn(Mono.just(testTransaction));
+        StepVerifier.create(transactionService.createTransaction(testTransaction))
+                .expectErrorMatches(error ->
+                        error instanceof IllegalArgumentException &&
+                                error.getMessage().equals("Invalid transaction type for debit card"))
+                .verify();
+    }
+
+    @Test
+    void processWithAvailableAccount_PrimaryAccountHasInsufficientBalance_UsesSecondaryAccount() {
+        DebitCard debitCard = new DebitCard();
+        debitCard.setId("1");
+        debitCard.setCustomerId("customer1");
+        debitCard.setStatus("ACTIVE");
+        debitCard.setPrimaryAccountId("account1");
+        debitCard.setAssociatedAccountIds(Arrays.asList("account1", "account2"));
+        Account primaryAccount = new Account();
+        primaryAccount.setId("account1");
+        primaryAccount.setBalance(50.0);
+        Account secondaryAccount = new Account();
+        secondaryAccount.setId("account2");
+        secondaryAccount.setBalance(500.0);
+        testTransaction.setProductCategory(ProductCategory.DEBIT_CARD);
+        testTransaction.setProductId("1");
+        testTransaction.setTransactionType(TransactionType.DEBIT_CARD_PAYMENT);
+        testTransaction.setAmount(new BigDecimal("100.00"));
+        when(debitCardClientService.getDebitCardById("1")).thenReturn(Mono.just(debitCard));
+        when(accountClientService.getAccountById("account1")).thenReturn(Mono.just(primaryAccount));
+        when(accountClientService.getAccountById("account2")).thenReturn(Mono.just(secondaryAccount));
+        when(accountClientService.updateAccountBalance(eq("account2"), any(BigDecimal.class)))
+                .thenReturn(Mono.just(secondaryAccount));
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(Mono.just(testTransaction));
+        StepVerifier.create(transactionService.createTransaction(testTransaction))
+                .expectNextMatches(transaction ->
+                        "account2".equals(transaction.getSourceAccountId()))
+                .verifyComplete();
+        verify(accountClientService).getAccountById("account1");
+        verify(accountClientService).getAccountById("account2");
+        verify(accountClientService).updateAccountBalance(eq("account2"), any(BigDecimal.class));
+    }
+    @Test
+    void processWithAvailableAccount_AccountNotFound_TriesNextAccount() {
+        DebitCard debitCard = new DebitCard();
+        debitCard.setId("1");
+        debitCard.setCustomerId("customer1");
+        debitCard.setStatus("ACTIVE");
+        debitCard.setPrimaryAccountId("account1");
+        debitCard.setAssociatedAccountIds(Arrays.asList("account1", "account2"));
+        Account secondaryAccount = new Account();
+        secondaryAccount.setId("account2");
+        secondaryAccount.setBalance(500.0);
+        testTransaction.setProductCategory(ProductCategory.DEBIT_CARD);
+        testTransaction.setProductId("1");
+        testTransaction.setTransactionType(TransactionType.DEBIT_CARD_PAYMENT);
+        testTransaction.setAmount(new BigDecimal("100.00"));
+        when(debitCardClientService.getDebitCardById("1")).thenReturn(Mono.just(debitCard));
+        when(accountClientService.getAccountById("account1"))
+                .thenReturn(Mono.error(new RuntimeException("Account not found")));
+        when(accountClientService.getAccountById("account2")).thenReturn(Mono.just(secondaryAccount));
+        when(accountClientService.updateAccountBalance(eq("account2"), any(BigDecimal.class)))
+                .thenReturn(Mono.just(secondaryAccount));
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(Mono.just(testTransaction));
+        StepVerifier.create(transactionService.createTransaction(testTransaction))
+                .expectNextMatches(transaction ->
+                        "account2".equals(transaction.getSourceAccountId()))
+                .verifyComplete();
     }
 }

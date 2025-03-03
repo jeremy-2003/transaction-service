@@ -1,5 +1,8 @@
 package com.bank.transactionservice.service;
 
+import com.bank.transactionservice.client.AccountClientService;
+import com.bank.transactionservice.client.CreditClientService;
+import com.bank.transactionservice.client.DebitCardClientService;
 import com.bank.transactionservice.model.account.Account;
 import com.bank.transactionservice.model.credit.Credit;
 import com.bank.transactionservice.model.credit.CreditStatus;
@@ -9,7 +12,6 @@ import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.model.transaction.TransactionType;
 import com.bank.transactionservice.repository.TransactionRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
@@ -68,13 +70,13 @@ public class TransactionService {
 
         return debitCardClientService.getDebitCardById(debitCardId)
                 .flatMap( debitCard -> {
-                    if (!"ACTIVE".equals(debitCard.getStatus())){
+                    if (!"ACTIVE".equals(debitCard.getStatus())) {
                         return Mono.error(new IllegalArgumentException("The debit card is not active"));
                     }
 
                     transaction.setCustomerId(debitCard.getCustomerId());
 
-                    switch (transaction.getTransactionType()){
+                    switch (transaction.getTransactionType()) {
                         case DEBIT_CARD_PAYMENT:
                         case DEBIT_CARD_WITHDRAWAL:
                             return processDebitCardPaymentOrWithdrawal(transaction, debitCard);
