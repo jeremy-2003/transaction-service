@@ -5,3 +5,4 @@ spring:
     config:
       uri: http://config-server-bwg5hzgfcte5gfbp.canadacentral-01.azurewebsites.net
       fail-fast: true
+      profile: ${SPRING_PROFILES_ACTIVE:local}
