@@ -3,15 +3,19 @@ package com.bank.transactionservice.service;
 import com.bank.transactionservice.client.AccountClientService;
 import com.bank.transactionservice.client.CreditClientService;
 import com.bank.transactionservice.client.DebitCardClientService;
+import com.bank.transactionservice.dto.BalanceUpdatedEvent;
 import com.bank.transactionservice.model.account.Account;
 import com.bank.transactionservice.model.credit.Credit;
 import com.bank.transactionservice.model.credit.CreditStatus;
 import com.bank.transactionservice.model.creditcard.PaymentStatus;
 import com.bank.transactionservice.model.debitcard.DebitCard;
+import com.bank.transactionservice.model.transaction.ProductSubType;
 import com.bank.transactionservice.model.transaction.Transaction;
 import com.bank.transactionservice.model.transaction.TransactionType;
 import com.bank.transactionservice.repository.TransactionRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
@@ -25,23 +29,15 @@ import java.util.List;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final TransactionCacheService transactionCacheService;
     private final AccountClientService accountClientService;
     private final CreditClientService creditClientService;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private  final DebitCardClientService debitCardClientService;
-    public TransactionService(TransactionRepository transactionRepository,
-                              TransactionCacheService transactionCacheService,
-                              AccountClientService accountClientService,
-                              CreditClientService creditClientService,
-                              DebitCardClientService debitCardClientService) {
-        this.transactionRepository = transactionRepository;
-        this.transactionCacheService = transactionCacheService;
-        this.accountClientService = accountClientService;
-        this.creditClientService = creditClientService;
-        this.debitCardClientService = debitCardClientService;
-    }
+
     public Mono<Transaction> createTransaction(Transaction transaction) {
         return validateAndProcessTransaction(transaction)
                 .flatMap(result -> {
@@ -105,22 +101,36 @@ public class TransactionService {
         }
         String currentAccountId = accountIds.get(currentIndex);
         return accountClientService.getAccountById(currentAccountId)
-                .flatMap( currentAccount -> {
+                .flatMap(currentAccount -> {
                     BigDecimal accountBalance = BigDecimal.valueOf(currentAccount.getBalance());
-
                     if (accountBalance.compareTo(amount) >= 0) {
                         BigDecimal newBalance = accountBalance.subtract(amount);
-
                         return accountClientService.updateAccountBalance(currentAccountId, newBalance)
                                 .then(Mono.defer(() -> {
                                     transaction.setSourceAccountId(currentAccountId);
+                                    if (currentIndex == 0) {
+                                        return debitCardClientService.getDebitCardByPrimaryAccountId(currentAccountId)
+                                                .flatMapMany(Flux::fromIterable)
+                                                .flatMap(debitCard -> {
+                                                    BalanceUpdatedEvent event = new BalanceUpdatedEvent(
+                                                            currentAccountId,
+                                                            newBalance,
+                                                            debitCard.getCardNumber()
+                                                    );
+                                                    kafkaTemplate.send("bank.account.balance.updated", event);
+                                                    return Mono.just(transaction);
+                                                })
+                                                .collectList()
+                                                .thenReturn(transaction)
+                                                .defaultIfEmpty(transaction);
+                                    }
                                     return Mono.just(transaction);
                                 }));
                     } else {
                         return processWithAvailableAccount(transaction, accountIds, currentIndex + 1, amount);
                     }
                 })
-                .onErrorResume( e -> {
+                .onErrorResume(e -> {
                     log.error("Error processing with account {}: {}", currentAccountId, e.getMessage());
                     return processWithAvailableAccount(transaction, accountIds, currentIndex + 1, amount);
                 });
@@ -136,38 +146,78 @@ public class TransactionService {
                         .count()
                         .flatMap(transactionCount -> {
                             BigDecimal newBalance = calculateNewBalance(account.getBalance(), transaction);
-                            if (transactionCount >= account.getMaxFreeTransaction()
+                            if (transaction.getProductSubType() != ProductSubType.YANKI
+                                    && transactionCount >= account.getMaxFreeTransaction()
                                     && (transaction.getTransactionType() == TransactionType.WITHDRAWAL
                                     || transaction.getTransactionType() == TransactionType.DEPOSIT)) {
                                 newBalance = newBalance.add(account.getTransactionCost());
                                 transaction.setAmount(transaction.getAmount().add(account.getTransactionCost()));
                                 transaction.setCommissions(account.getTransactionCost());
                             }
-
                             Mono<Account> updateAccountBalanceMono = accountClientService
                                     .updateAccountBalance(transaction.getProductId(), newBalance);
-
+                            Mono<BigDecimal> destinationBalanceMono = Mono.empty();
                             if (transaction.getTransactionType() == TransactionType.TRANSFER) {
                                 if (transaction.getDestinationAccountId() == null) {
                                     return Mono.error(new IllegalArgumentException("A destination account " +
                                             "is required for a transfer"));
                                 } else {
-                                    updateAccountBalanceMono = updateAccountBalanceMono.then(
-                                            accountClientService.getAccountById(transaction.getDestinationAccountId())
-                                                    .flatMap(destinationAccount -> {
-                                                        BigDecimal destinationNewBalance = BigDecimal
-                                                                .valueOf(destinationAccount.getBalance())
-                                                                .add(transaction.getAmount());
-                                                        return accountClientService.updateAccountBalance(transaction
-                                                                .getDestinationAccountId(),
-                                                                destinationNewBalance);
-                                                    })
-                                    );
+                                    destinationBalanceMono = accountClientService
+                                        .getAccountById(transaction.getDestinationAccountId())
+                                            .flatMap(destinationAccount -> {
+                                                BigDecimal destinationNewBalance = BigDecimal
+                                                        .valueOf(destinationAccount.getBalance())
+                                                        .add(transaction.getAmount());
+                                                return accountClientService.updateAccountBalance(
+                                                        transaction.getDestinationAccountId(),
+                                                        destinationNewBalance
+                                                ).thenReturn(destinationNewBalance);
+                                            });
                                 }
                             }
-
-                            return updateAccountBalanceMono.thenReturn(transaction);
-                        }));
+                            BigDecimal finalNewBalance = newBalance;
+                            return updateAccountBalanceMono
+                                    .then(debitCardClientService
+                                        .getDebitCardByPrimaryAccountId(
+                                        transaction.getProductId()))
+                                    .flatMapMany(Flux::fromIterable)
+                                    .flatMap(debitCard -> {
+                                        BalanceUpdatedEvent event = new BalanceUpdatedEvent(
+                                                transaction.getProductId(),
+                                                finalNewBalance,
+                                                debitCard.getCardNumber()
+                                        );
+                                        return Mono.fromFuture(kafkaTemplate.send(
+                                            "bank.account.balance.updated",
+                                            event).completable())
+                                                .thenReturn(transaction);
+                                    })
+                                    .collectList()
+                                    .then(destinationBalanceMono
+                                            .flatMap(destinationNewBalance ->
+                                                    debitCardClientService.getDebitCardByPrimaryAccountId(
+                                                        transaction.getDestinationAccountId())
+                                                            .flatMapMany(Flux::fromIterable)
+                                                            .flatMap(destinationDebitCard -> {
+                                                                BalanceUpdatedEvent destinationEvent =
+                                                                    new BalanceUpdatedEvent(
+                                                                        transaction.getDestinationAccountId(),
+                                                                        destinationNewBalance,
+                                                                        destinationDebitCard.getCardNumber()
+                                                                    );
+                                                                return Mono.fromFuture(kafkaTemplate.send(
+                                                                    "bank.account.balance.updated",
+                                                                    destinationEvent).completable())
+                                                                        .thenReturn(transaction);
+                                                            })
+                                                            .collectList()
+                                                            .thenReturn(transaction)
+                                            )
+                                            .defaultIfEmpty(transaction)
+                                    )
+                                    .defaultIfEmpty(transaction);
+                        })
+                );
     }
     private Mono<Transaction> processCreditTransaction(Transaction transaction) {
         return transactionCacheService.getCredit(transaction.getProductId())
