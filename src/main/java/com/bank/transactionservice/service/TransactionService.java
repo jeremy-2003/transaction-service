@@ -146,7 +146,8 @@ public class TransactionService {
                         .count()
                         .flatMap(transactionCount -> {
                             BigDecimal newBalance = calculateNewBalance(account.getBalance(), transaction);
-                            if (transaction.getProductSubType() != ProductSubType.YANKI
+                            if ((transaction.getProductSubType() != ProductSubType.YANKI
+                                    && transaction.getProductSubType() != ProductSubType.BOOT_COIN)
                                     && transactionCount >= account.getMaxFreeTransaction()
                                     && (transaction.getTransactionType() == TransactionType.WITHDRAWAL
                                     || transaction.getTransactionType() == TransactionType.DEPOSIT)) {

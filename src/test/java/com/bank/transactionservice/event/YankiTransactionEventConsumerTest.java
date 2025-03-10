@@ -43,23 +43,17 @@ class YankiTransactionEventConsumerTest {
 
     @Test
     void shouldProcessInternalTransactionWhenBothUsersAreYankiOnly() {
-        // Given
         YankiTransactionEvent event = new YankiTransactionEvent();
         event.setSenderCard(null);
         event.setReceiverCard(null);
 
         when(kafkaTemplate.send(anyString(), any())).thenReturn(mock(ListenableFuture.class));
-
-        // When
         consumer.processYankiTransaction(event);
-
-        // Then
         verify(kafkaTemplate, times(1)).send(eq("yanki.transaction.processed"), any());
     }
 
     @Test
     void shouldDebitSenderAccountWhenSenderHasCardAndReceiverDoesNot() {
-        // Given
         YankiTransactionEvent event = new YankiTransactionEvent();
         event.setSenderCard("123456789");
         event.setReceiverCard(null);
@@ -82,18 +76,13 @@ class YankiTransactionEventConsumerTest {
         when(transactionService.createTransaction(any()))
                 .thenReturn(Mono.just(transaction));
         when(kafkaTemplate.send(anyString(), any())).thenReturn(mock(ListenableFuture.class));
-
-        // When
         consumer.processYankiTransaction(event);
-
-        // Then
         verify(transactionService, times(1)).createTransaction(any(Transaction.class));
         verify(kafkaTemplate, times(1)).send(eq("yanki.transaction.processed"), any());
     }
 
     @Test
     void shouldHandleErrorWhenDebitFails() {
-        // Given
         YankiTransactionEvent event = new YankiTransactionEvent();
         event.setSenderCard("123456789");
         event.setReceiverCard(null);
@@ -107,10 +96,7 @@ class YankiTransactionEventConsumerTest {
                 .thenReturn(Mono.error(new RuntimeException("Account not found")));
         when(kafkaTemplate.send(anyString(), any())).thenReturn(mock(ListenableFuture.class));
 
-        // When
         consumer.processYankiTransaction(event);
-
-        // Then
         verify(kafkaTemplate, times(1)).send(anyString(), argThat(argument ->
                 argument instanceof YankiTransactionProcessedEvent &&
                         ((YankiTransactionProcessedEvent) argument).getStatus().equals("FAILED")
@@ -118,7 +104,6 @@ class YankiTransactionEventConsumerTest {
     }
     @Test
     void shouldCreditReceiverAccountWhenReceiverHasCardAndSenderDoesNot() {
-        // Given
         YankiTransactionEvent event = new YankiTransactionEvent();
         event.setSenderCard(null);
         event.setReceiverCard("987654321");
@@ -138,9 +123,7 @@ class YankiTransactionEventConsumerTest {
         when(transactionService.createTransaction(any()))
                 .thenReturn(Mono.just(transaction));
         when(kafkaTemplate.send(anyString(), any())).thenReturn(mock(ListenableFuture.class));
-        // When
         consumer.processYankiTransaction(event);
-        // Then
         verify(transactionService, times(1)).createTransaction(argThat(tx ->
                 tx.getTransactionType() == TransactionType.DEPOSIT &&
                         tx.getProductId().equals("receiverAccount123") &&
@@ -153,7 +136,6 @@ class YankiTransactionEventConsumerTest {
     }
     @Test
     void shouldHandleErrorWhenCreditToReceiverFails() {
-        // Given
         YankiTransactionEvent event = new YankiTransactionEvent();
         event.setSenderCard(null);
         event.setReceiverCard("987654321");
@@ -165,9 +147,7 @@ class YankiTransactionEventConsumerTest {
         when(accountClientService.getAccountById("receiverAccount123"))
                 .thenReturn(Mono.error(new RuntimeException("Receiver account not found")));
         when(kafkaTemplate.send(anyString(), any())).thenReturn(mock(ListenableFuture.class));
-        // When
         consumer.processYankiTransaction(event);
-        // Then
         verify(kafkaTemplate, times(1)).send(anyString(), argThat(argument ->
                 argument instanceof YankiTransactionProcessedEvent &&
                         ((YankiTransactionProcessedEvent) argument).getStatus().equals("FAILED") &&
@@ -177,7 +157,6 @@ class YankiTransactionEventConsumerTest {
     }
     @Test
     void shouldProcessTransferWhenBothUsersHaveCards() {
-        // Given
         YankiTransactionEvent event = new YankiTransactionEvent();
         event.setSenderCard("123456789");
         event.setReceiverCard("987654321");
@@ -214,9 +193,7 @@ class YankiTransactionEventConsumerTest {
         when(transactionService.createTransaction(any()))
                 .thenReturn(Mono.just(transaction));
         when(kafkaTemplate.send(anyString(), any())).thenReturn(mock(ListenableFuture.class));
-        // When
         consumer.processYankiTransaction(event);
-        // Then
         verify(transactionService, times(1)).createTransaction(argThat(tx ->
                 tx.getTransactionType() == TransactionType.TRANSFER &&
                         tx.getProductId().equals("senderAccount123") &&
@@ -235,7 +212,6 @@ class YankiTransactionEventConsumerTest {
     }
     @Test
     void shouldHandleErrorWhenTransferBetweenAccountsFails() {
-        // Given
         YankiTransactionEvent event = new YankiTransactionEvent();
         event.setSenderCard("123456789");
         event.setReceiverCard("987654321");
@@ -254,9 +230,7 @@ class YankiTransactionEventConsumerTest {
         when(accountClientService.getAccountById("senderAccount123"))
                 .thenReturn(Mono.error(new RuntimeException("Sender account not found")));
         when(kafkaTemplate.send(anyString(), any())).thenReturn(mock(ListenableFuture.class));
-        // When
         consumer.processYankiTransaction(event);
-        // Then
         verify(kafkaTemplate, times(1)).send(anyString(), argThat(argument ->
                 argument instanceof YankiTransactionProcessedEvent &&
                         ((YankiTransactionProcessedEvent) argument).getStatus().equals("FAILED") &&
@@ -266,7 +240,6 @@ class YankiTransactionEventConsumerTest {
     }
     @Test
     void shouldHandleExceptionDuringProcessing() {
-        // Given
         YankiTransactionEvent event = new YankiTransactionEvent();
         event.setSenderCard("123456789");
         event.setReceiverCard("987654321");
@@ -274,9 +247,7 @@ class YankiTransactionEventConsumerTest {
         when(debitCardClientService.getDebitCardByCardNumber(anyString()))
                 .thenReturn(null);
         when(kafkaTemplate.send(anyString(), any())).thenReturn(mock(ListenableFuture.class));
-        // When
         consumer.processYankiTransaction(event);
-        // Then
         verify(kafkaTemplate, times(1)).send(anyString(), argThat(argument ->
                 argument instanceof YankiTransactionProcessedEvent &&
                         ((YankiTransactionProcessedEvent) argument).getStatus().equals("FAILED")

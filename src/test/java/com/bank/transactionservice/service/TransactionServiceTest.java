@@ -477,7 +477,6 @@ class TransactionServiceTest {
     }
     @Test
     void createTransaction_DebitCardPayment_FallbackToSecondaryAccount() {
-        // Setup
         DebitCard debitCard = new DebitCard();
         debitCard.setId("1");
         debitCard.setCustomerId("customer1");
@@ -540,7 +539,6 @@ class TransactionServiceTest {
                         throwable instanceof IllegalArgumentException &&
                                 throwable.getMessage().equals("The debit card is not active"))
                 .verify();
-        // Verify
         verify(debitCardClientService).getDebitCardById("1");
         verify(accountClientService, never()).getAccountById(anyString());
         verify(accountClientService, never()).updateAccountBalance(anyString(), any(BigDecimal.class));
